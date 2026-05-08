@@ -4,8 +4,8 @@
 # =============================================================================
 
 # Cargar bases de datos
-test <- read.csv("test.csv")
-train <- read.csv("train.csv")
+test <- read.csv(file.path(path_raw, "test.csv"))
+train <- read.csv(file.path(path_raw, "train.csv"))
 
 # Revisar nombres y estructura general de los datos
 colnames(test)

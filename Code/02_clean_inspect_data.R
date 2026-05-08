@@ -106,50 +106,68 @@ propiedades_sf <- base_train %>%
 
 bbox_bogota <- getbb("Bogota, Colombia")
 
+sf::sf_use_s2(FALSE)
+
 extraer_geometrias_osm <- function(osm_obj) {
   bind_rows(
     osm_obj$osm_points,
     st_centroid(osm_obj$osm_polygons),
     st_centroid(osm_obj$osm_multipolygons)
   ) %>%
+    filter(!st_is_empty(.)) %>%
     st_transform(3116)
 }
 
-sf::sf_use_s2(FALSE)
+consultar_osm_cache <- function(nombre_archivo, key, value) {
+  
+  archivo <- file.path(path_raw, nombre_archivo)
+  
+  if (file.exists(archivo)) {
+    
+    message("Cargando desde archivo local: ", nombre_archivo)
+    osm_obj <- readRDS(archivo)
+    
+  } else {
+    
+    message("Consultando OSM: ", nombre_archivo)
+    
+    osm_obj <- opq(bbox = bbox_bogota, timeout = 120) %>%
+      add_osm_feature(key = key, value = value) %>%
+      osmdata_sf()
+    
+    saveRDS(osm_obj, archivo)
+  }
+  
+  extraer_geometrias_osm(osm_obj)
+}
 
 # Transporte público
-transporte_osm <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(
-    key = "public_transport",
-    value = c("station", "stop_position", "platform")
-  ) %>%
-  osmdata_sf()
-
-transporte <- extraer_geometrias_osm(transporte_osm)
-
+transporte <- consultar_osm_cache(
+  nombre_archivo = "transporte_osm.rds",
+  key = "public_transport",
+  value = c("station", "stop_position", "platform")
+)
 
 # Restaurantes
-restaurantes_osm <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "amenity", value = "restaurant") %>%
-  osmdata_sf()
-
-restaurantes <- extraer_geometrias_osm(restaurantes_osm)
-
+restaurantes <- consultar_osm_cache(
+  nombre_archivo = "restaurantes_osm.rds",
+  key = "amenity",
+  value = "restaurant"
+)
 
 # Colegios
-colegios_osm <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "amenity", value = "school") %>%
-  osmdata_sf()
-
-colegios <- extraer_geometrias_osm(colegios_osm)
-
+colegios <- consultar_osm_cache(
+  nombre_archivo = "colegios_osm.rds",
+  key = "amenity",
+  value = "school"
+)
 
 # Parques
-parques_osm <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "leisure", value = "park") %>%
-  osmdata_sf()
-
-parques <- extraer_geometrias_osm(parques_osm)
+parques <- consultar_osm_cache(
+  nombre_archivo = "parques_osm.rds",
+  key = "leisure",
+  value = "park"
+)
 
 # ------------------------------------------------------------
 # 5. Crear variables espaciales
@@ -184,10 +202,15 @@ propiedades_sf$n_restaurantes_500m <- lengths(
 
 
 # Distancia al colegio más cercano
-dist_colegio <- st_distance(propiedades_sf, colegios)
+idx_colegio_cercano <- st_nearest_feature(propiedades_sf, colegios)
 
-propiedades_sf$dist_colegio_m <- apply(dist_colegio, 1, min) %>%
-  as.numeric()
+propiedades_sf$dist_colegio_m <- as.numeric(
+  st_distance(
+    propiedades_sf,
+    colegios[idx_colegio_cercano, ],
+    by_element = TRUE
+  )
+)
 
 
 # Distancia al parque más cercano
@@ -209,5 +232,3 @@ propiedades_sf$dist_parque_m <- as.numeric(
 
 base_train_osm <- propiedades_sf %>%
   st_drop_geometry()
-
-
