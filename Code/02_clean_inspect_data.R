@@ -42,8 +42,14 @@ mean(train$bathrooms, na.rm = TRUE)
 
 colSums(is.na(train))
 
-# Nuevas variables
-# 1. Función para limpiar texto
+
+# 1. Train ----------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------
+# Función para limpiar texto
+# ------------------------------------------------------------
 limpiar_texto <- function(x) {
   x %>%
     str_to_lower() %>%
@@ -52,7 +58,10 @@ limpiar_texto <- function(x) {
     str_squish()
 }
 
-# 2. Crear variables
+# ------------------------------------------------------------
+# Crear variables a partir del texto
+# ------------------------------------------------------------
+
 base_train <- train %>%
   mutate(
     texto = limpiar_texto(str_c(title, description, sep = " ")),
@@ -98,7 +107,10 @@ base_train %>%
     sum
   ))
 
-# Variables de OpenStreetMap
+# ------------------------------------------------------------
+# Crear variables a partir de OpenStreetMap
+# ------------------------------------------------------------
+
 propiedades_sf <- base_train %>%
   filter(!is.na(lon), !is.na(lat)) %>%
   st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
@@ -170,7 +182,7 @@ parques <- consultar_osm_cache(
 )
 
 # ------------------------------------------------------------
-# 5. Crear variables espaciales
+# Crear variables espaciales
 # ------------------------------------------------------------
 
 # Distancia al transporte público más cercano
@@ -227,8 +239,138 @@ propiedades_sf$dist_parque_m <- as.numeric(
 
 
 # ------------------------------------------------------------
-# 6. Volver a formato data frame normal
+# Volver a formato data frame normal
 # ------------------------------------------------------------
 
 base_train_osm <- propiedades_sf %>%
   st_drop_geometry()
+
+# Ajustes finales 
+base_train_osm <- base_train_osm %>%
+  mutate(
+    house = as.integer(property_type == "Casa")
+  )
+
+base_train_final <- base_train_osm %>%
+  select(
+    -city,
+    -property_type,
+    -operation_type,
+    -title,
+    -description,
+    -texto
+  ) %>%
+  drop_na()
+
+# 2. Test -----------------------------------------------------------------
+
+# ------------------------------------------------------------
+# Crear variables a partir del texto
+# ------------------------------------------------------------
+
+base_test <- test %>%
+  mutate(
+    title = coalesce(title, ""),
+    description = coalesce(description, ""),
+    
+    texto = limpiar_texto(str_c(title, description, sep = " ")),
+    
+    gym = as.integer(str_detect(texto, "\\b(gimnasio|gym)\\b")),
+    elevator = as.integer(str_detect(texto, "\\b(ascensor|elevador)\\b")),
+    parking = as.integer(str_detect(texto, "\\b(parking|parqueadero|garaje|garage)\\b")),
+    balcony = as.integer(str_detect(texto, "\\b(balcon|balcones|terraza)\\b")),
+    pool = as.integer(str_detect(texto, "\\b(piscina|pool)\\b")),
+    security = as.integer(str_detect(texto, "\\b(vigilancia|seguridad|porteria|portero|recepcion)\\b")),
+    green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
+    remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
+    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b"))
+  )
+
+# ------------------------------------------------------------
+# Crear variables a partir del texto
+# ------------------------------------------------------------
+
+test_sf <- base_test %>%
+  mutate(row_id = row_number()) %>%
+  filter(!is.na(lon), !is.na(lat)) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  st_transform(3116)
+
+# Distancia al transporte público más cercano
+idx_transporte_cercano_test <- st_nearest_feature(test_sf, transporte)
+
+test_sf$dist_transporte_m <- as.numeric(
+  st_distance(
+    test_sf,
+    transporte[idx_transporte_cercano_test, ],
+    by_element = TRUE
+  )
+)
+
+# Número de restaurantes en un radio de 500 metros
+buffer_500_test <- st_buffer(test_sf, dist = 500)
+
+test_sf$n_restaurantes_500m <- lengths(
+  st_intersects(buffer_500_test, restaurantes)
+)
+
+# Distancia al colegio más cercano
+idx_colegio_cercano_test <- st_nearest_feature(test_sf, colegios)
+
+test_sf$dist_colegio_m <- as.numeric(
+  st_distance(
+    test_sf,
+    colegios[idx_colegio_cercano_test, ],
+    by_element = TRUE
+  )
+)
+
+# Distancia al parque más cercano
+idx_parque_cercano_test <- st_nearest_feature(test_sf, parques)
+
+test_sf$dist_parque_m <- as.numeric(
+  st_distance(
+    test_sf,
+    parques[idx_parque_cercano_test, ],
+    by_element = TRUE
+  )
+)
+
+# ------------------------------------------------------------
+# Volver a formato normal y unir con base_test
+# ------------------------------------------------------------
+
+test_osm_vars <- test_sf %>%
+  st_drop_geometry() %>%
+  select(
+    row_id,
+    dist_transporte_m,
+    n_restaurantes_500m,
+    dist_colegio_m,
+    dist_parque_m
+  )
+
+base_test_osm <- base_test %>%
+  mutate(row_id = row_number()) %>%
+  left_join(test_osm_vars, by = "row_id") %>%
+  select(-row_id)
+
+# Ajustes finales 
+
+base_test_osm <- base_test_osm %>%
+  mutate(
+    house = as.integer(property_type == "Casa")
+  )
+
+base_test_final <- base_test_osm %>%
+  select(
+    -city,
+    -price,
+    -property_type,
+    -operation_type,
+    -lat,
+    -lon,
+    -title,
+    -description,
+    -texto
+  )
