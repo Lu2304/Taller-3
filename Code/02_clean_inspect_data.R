@@ -98,7 +98,13 @@ base_train <- train %>%
     security = as.integer(str_detect(texto, "\\b(vigilancia|seguridad|porteria|portero|recepcion)\\b")),
     green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
     remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
-    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b"))
+    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
+    estrato_texto = str_extract(
+      texto,
+      "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"
+    ),
+    
+    estrato = parse_number(estrato_texto)
   )
 
 base_train %>%
@@ -113,8 +119,12 @@ base_train %>%
 
 propiedades_sf <- base_train %>%
   filter(!is.na(lon), !is.na(lat)) %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
-  st_transform(3116)  # coordenadas en metros para Colombia
+  st_as_sf(
+    coords = c("lon", "lat"),
+    crs = 4326,
+    remove = FALSE
+  ) %>%
+  st_transform(3116)
 
 bbox_bogota <- getbb("Bogota, Colombia")
 
@@ -334,7 +344,8 @@ base_train_final <- base_train_osm %>%
     -texto,
     -metros_extraidos,
     -bathrooms_extraidos,
-    -rooms_extraidos
+    -rooms_extraidos,
+    -estrato_texto
   ) 
 
 # 2. Test -----------------------------------------------------------------
@@ -357,7 +368,13 @@ base_test <- test %>%
     security = as.integer(str_detect(texto, "\\b(vigilancia|seguridad|porteria|portero|recepcion)\\b")),
     green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
     remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
-    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b"))
+    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
+    estrato_texto = str_extract(
+      texto,
+      "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"
+    ),
+    
+    estrato = parse_number(estrato_texto)
   )
 
 # ------------------------------------------------------------
@@ -366,7 +383,11 @@ base_test <- test %>%
 test_sf <- base_test %>%
   mutate(row_id = row_number()) %>%
   filter(!is.na(lon), !is.na(lat)) %>%
-  st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+  st_as_sf(
+    coords = c("lon", "lat"),
+    crs = 4326,
+    remove = FALSE
+  ) %>%
   st_transform(3116)
 
 # Distancia al transporte público más cercano
@@ -516,12 +537,11 @@ base_test_final <- base_test_osm %>%
     -price,
     -property_type,
     -operation_type,
-    -lat,
-    -lon,
     -title,
     -description,
     -texto,
     -metros_extraidos,
     -bathrooms_extraidos,
-    -rooms_extraidos
+    -rooms_extraidos,
+    -estrato_texto
   )
