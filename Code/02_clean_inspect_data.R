@@ -226,7 +226,6 @@ propiedades_sf$dist_colegio_m <- as.numeric(
 
 
 # Distancia al parque más cercano
-
 idx_parque_cercano <- st_nearest_feature(propiedades_sf, parques)
 
 propiedades_sf$dist_parque_m <- as.numeric(
@@ -241,7 +240,6 @@ propiedades_sf$dist_parque_m <- as.numeric(
 # ------------------------------------------------------------
 # Volver a formato data frame normal
 # ------------------------------------------------------------
-
 base_train_osm <- propiedades_sf %>%
   st_drop_geometry()
 
@@ -251,6 +249,81 @@ base_train_osm <- base_train_osm %>%
     house = as.integer(property_type == "Casa")
   )
 
+# Tratamiento de NAs 
+base_train_osm <- base_train_osm %>%
+  mutate(
+    
+    metros_extraidos = str_extract(
+      texto,
+      "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
+    ),
+    
+    metros_extraidos = parse_number(metros_extraidos)
+    
+  )
+
+base_train_osm <- base_train_osm %>%
+  mutate(
+    
+    bathrooms_extraidos = str_extract(
+      texto,
+      "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
+    ),
+    
+    bathrooms_extraidos = parse_number(bathrooms_extraidos)
+    
+  )
+
+base_train_osm <- base_train_osm %>%
+  mutate(
+    
+    rooms_extraidos = str_extract(
+      texto,
+      "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
+    ),
+    
+    rooms_extraidos = parse_number(rooms_extraidos)
+    
+  )
+
+base_train_osm <- base_train_osm %>%
+  mutate(
+    
+    surface_total = if_else(
+      is.na(surface_total),
+      metros_extraidos,
+      surface_total
+    ),
+    
+    surface_covered = if_else(
+      is.na(surface_covered),
+      metros_extraidos,
+      surface_covered
+    ),
+    
+    bathrooms = if_else(
+      is.na(bathrooms),
+      bathrooms_extraidos,
+      bathrooms
+    ),
+    
+    rooms = if_else(
+      is.na(rooms),
+      rooms_extraidos,
+      rooms
+    )
+    
+  )
+
+base_train_osm <- base_train_osm %>%
+  mutate(
+    na_surface_total = as.integer(is.na(surface_total)),
+    na_surface_covered = as.integer(is.na(surface_covered)),
+    na_rooms = as.integer(is.na(rooms)),
+    na_bathrooms = as.integer(is.na(bathrooms))
+  )
+
+# Eliminar variables innecesarias para predecir
 base_train_final <- base_train_osm %>%
   select(
     -city,
@@ -258,16 +331,17 @@ base_train_final <- base_train_osm %>%
     -operation_type,
     -title,
     -description,
-    -texto
-  ) %>%
-  drop_na()
+    -texto,
+    -metros_extraidos,
+    -bathrooms_extraidos,
+    -rooms_extraidos
+  ) 
 
 # 2. Test -----------------------------------------------------------------
 
 # ------------------------------------------------------------
 # Crear variables a partir del texto
 # ------------------------------------------------------------
-
 base_test <- test %>%
   mutate(
     title = coalesce(title, ""),
@@ -289,7 +363,6 @@ base_test <- test %>%
 # ------------------------------------------------------------
 # Crear variables a partir del texto
 # ------------------------------------------------------------
-
 test_sf <- base_test %>%
   mutate(row_id = row_number()) %>%
   filter(!is.na(lon), !is.na(lat)) %>%
@@ -339,7 +412,6 @@ test_sf$dist_parque_m <- as.numeric(
 # ------------------------------------------------------------
 # Volver a formato normal y unir con base_test
 # ------------------------------------------------------------
-
 test_osm_vars <- test_sf %>%
   st_drop_geometry() %>%
   select(
@@ -356,12 +428,88 @@ base_test_osm <- base_test %>%
   select(-row_id)
 
 # Ajustes finales 
-
 base_test_osm <- base_test_osm %>%
   mutate(
     house = as.integer(property_type == "Casa")
   )
 
+# Tratamiento de NAs
+base_test_osm <- base_test_osm %>%
+  mutate(
+    
+    metros_extraidos = str_extract(
+      texto,
+      "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
+    ),
+    
+    metros_extraidos = parse_number(metros_extraidos)
+    
+  )
+
+base_test_osm <- base_test_osm %>%
+  mutate(
+    
+    bathrooms_extraidos = str_extract(
+      texto,
+      "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
+    ),
+    
+    bathrooms_extraidos = parse_number(bathrooms_extraidos)
+    
+  )
+
+base_test_osm <- base_test_osm %>%
+  mutate(
+    
+    rooms_extraidos = str_extract(
+      texto,
+      "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
+    ),
+    
+    rooms_extraidos = parse_number(rooms_extraidos)
+    
+  )
+
+base_test_osm <- base_test_osm %>%
+  mutate(
+    
+    surface_total = if_else(
+      is.na(surface_total),
+      metros_extraidos,
+      surface_total
+    ),
+    
+    surface_covered = if_else(
+      is.na(surface_covered),
+      metros_extraidos,
+      surface_covered
+    ),
+    
+    bathrooms = if_else(
+      is.na(bathrooms),
+      bathrooms_extraidos,
+      bathrooms
+    ),
+    
+    rooms = if_else(
+      is.na(rooms),
+      rooms_extraidos,
+      rooms
+    )
+    
+  )
+
+base_test_osm <- base_test_osm %>%
+  mutate(
+    na_surface_total = as.integer(is.na(surface_total)),
+    na_surface_covered = as.integer(is.na(surface_covered)),
+    na_rooms = as.integer(is.na(rooms)),
+    na_bathrooms = as.integer(is.na(bathrooms))
+  )
+
+
+
+# Eliminar variables innecesarias para predecir
 base_test_final <- base_test_osm %>%
   select(
     -city,
@@ -372,5 +520,8 @@ base_test_final <- base_test_osm %>%
     -lon,
     -title,
     -description,
-    -texto
+    -texto,
+    -metros_extraidos,
+    -bathrooms_extraidos,
+    -rooms_extraidos
   )
