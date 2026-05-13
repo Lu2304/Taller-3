@@ -136,6 +136,6 @@ submission_nn <- data.frame(
 
 write.csv(
   submission_nn,
-  file.path(path_submissions, "NN_rmsprop.csv"),
+  file.path(path_submissions, "NN_rmsprop3.csv"),
   row.names = FALSE
 )
