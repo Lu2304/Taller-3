@@ -10,7 +10,7 @@ rm(list = ls())
 #Cargue de librerías
 library(pacman)
 
-p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample)
+p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample, keras)
 
 # Establecimiento de paths
 path_input  <- "Input"
