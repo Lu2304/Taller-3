@@ -99,6 +99,8 @@ base_train <- train %>%
     green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
     remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
     new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
+    luxury = as.integer(str_detect(texto, "\\b(marmol|granito|madera|piso laminado|acabados de lujo|lujo|exclusivo|exclusiva|premium)\\b")),
+    storage = as.integer(str_detect(texto, "deposito|cuarto util|bodega")),
     estrato_texto = str_extract(
       texto,
       "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"
@@ -369,6 +371,8 @@ base_test <- test %>%
     green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
     remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
     new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
+    luxury = as.integer(str_detect(texto, "\\b(marmol|granito|madera|piso laminado|acabados de lujo|lujo|exclusivo|exclusiva|premium)\\b")),
+    storage = as.integer(str_detect(texto, "deposito|cuarto util|bodega")),
     estrato_texto = str_extract(
       texto,
       "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"

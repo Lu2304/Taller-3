@@ -1,0 +1,2 @@
+"modelo","cp","minsplit","maxdepth","cv_mae_mean","cv_mae_sd","sp_mae_mean","sp_mae_sd"
+"CART",1e-05,5,20,125779144.913766,1372713.29652561,157953603.418297,13552517.7082259
