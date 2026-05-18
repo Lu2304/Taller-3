@@ -11,7 +11,7 @@ rm(list = ls())
 library(pacman)
 
 p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample, keras,
-       ggplot2, scales)
+       ggplot2, scales, glmnet, rpart, rpart.plot, nnls)
 
 # Establecimiento de paths
 path_input  <- "Input"
