@@ -46,9 +46,9 @@ colSums(is.na(train))
 # 1. Train ----------------------------------------------------------------
 
 
-
 # ------------------------------------------------------------
-# Función para limpiar texto
+# Funcion para limpiar texto
+#todo el minusculas, sin tildes ni simbolos
 # ------------------------------------------------------------
 limpiar_texto <- function(x) {
   x %>%
@@ -111,6 +111,7 @@ bbox_bogota <- getbb("Bogota, Colombia")
 
 sf::sf_use_s2(FALSE)
 
+#Funcion auxiliar para extraer geometrias de un objeto OSM
 extraer_geometrias_osm <- function(osm_obj) {
   bind_rows(
     osm_obj$osm_points,
@@ -121,6 +122,7 @@ extraer_geometrias_osm <- function(osm_obj) {
     st_transform(3116)
 }
 
+#funcion para consulta OSM o carga desde cache local
 consultar_osm_cache <- function(nombre_archivo, key, value) {
   
   archivo <- file.path(path_raw, nombre_archivo)
@@ -144,33 +146,10 @@ consultar_osm_cache <- function(nombre_archivo, key, value) {
   extraer_geometrias_osm(osm_obj)
 }
 
-# Transporte público
-transporte <- consultar_osm_cache(
-  nombre_archivo = "transporte_osm.rds",
-  key = "public_transport",
-  value = c("station", "stop_position", "platform")
-)
-
-# Restaurantes
-restaurantes <- consultar_osm_cache(
-  nombre_archivo = "restaurantes_osm.rds",
-  key = "amenity",
-  value = "restaurant"
-)
-
-# Colegios
-colegios <- consultar_osm_cache(
-  nombre_archivo = "colegios_osm.rds",
-  key = "amenity",
-  value = "school"
-)
-
-# Parques
-parques <- consultar_osm_cache(
-  nombre_archivo = "parques_osm.rds",
-  key = "leisure",
-  value = "park"
-)
+transporte  <- consultar_osm_cache("transporte_osm.rds",  "public_transport", c("station", "stop_position", "platform"))
+restaurantes <- consultar_osm_cache("restaurantes_osm.rds", "amenity",         "restaurant")
+colegios    <- consultar_osm_cache("colegios_osm.rds",    "amenity",           "school")
+parques     <- consultar_osm_cache("parques_osm.rds",     "leisure",           "park")
 
 # ------------------------------------------------------------
 # Crear variables espaciales
@@ -234,333 +213,239 @@ propiedades_sf$dist_parque_m <- as.numeric(
 base_train_osm <- propiedades_sf %>%
   st_drop_geometry()
 
-# Ajustes finales 
+# Variable indicadora de tipo de propiedad
 base_train_osm <- base_train_osm %>%
   mutate(
     house = as.integer(property_type == "Casa")
   )
 
 # ------------------------------------------------------------
-# Missing values: indicadores de missingness
+# PASO 1: Extraer metros, baños y cuartos desde el texto
 # ------------------------------------------------------------
-
 base_train_osm <- base_train_osm %>%
   mutate(
-    na_surface_total = as.integer(is.na(surface_total)),
-    na_surface_covered = as.integer(is.na(surface_covered)),
-    na_rooms = as.integer(is.na(rooms)),
-    na_bathrooms = as.integer(is.na(bathrooms)),
-    na_bedrooms = as.integer(is.na(bedrooms)),
-    na_estrato = as.integer(is.na(estrato))
-  )
-
-# ------------------------------------------------------------
-# Extraer información desde texto
-# ------------------------------------------------------------
-
-base_train_osm <- base_train_osm %>%
-  mutate(
-    
-    metros_extraidos = str_extract(
-      texto,
-      "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
-    ),
-    
-    metros_extraidos = parse_number(metros_extraidos),
-    
-    bathrooms_extraidos = str_extract(
-      texto,
-      "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
-    ),
-    
-    bathrooms_extraidos = parse_number(bathrooms_extraidos),
-    
-    rooms_extraidos = str_extract(
-      texto,
-      "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
-    ),
-    
-    rooms_extraidos = parse_number(rooms_extraidos)
-    
-  )
-
-# ------------------------------------------------------------
-# Imputación usando información del texto
-# ------------------------------------------------------------
-
-base_train_osm <- base_train_osm %>%
-  mutate(
-    
-    surface_total = coalesce(surface_total, metros_extraidos),
-    
-    surface_covered = coalesce(surface_covered, metros_extraidos),
-    
-    bathrooms = coalesce(bathrooms, bathrooms_extraidos),
-    
-    rooms = coalesce(rooms, rooms_extraidos),
-    
-    bedrooms = coalesce(bedrooms, rooms)
-    
-  )
-
-# ------------------------------------------------------------
-# Imputación final con medianas
-# ------------------------------------------------------------
-
-medianas_train <- base_train_osm %>%
-  summarise(
-    surface_total = median(surface_total, na.rm = TRUE),
-    surface_covered = median(surface_covered, na.rm = TRUE),
-    rooms = median(rooms, na.rm = TRUE),
-    bedrooms = median(bedrooms, na.rm = TRUE),
-    bathrooms = median(bathrooms, na.rm = TRUE),
-    estrato = median(estrato, na.rm = TRUE)
-  )
-
-base_train_osm <- base_train_osm %>%
-  mutate(
-    
-    surface_total = coalesce(
-      surface_total,
-      medianas_train$surface_total
-    ),
-    
-    surface_covered = coalesce(
-      surface_covered,
-      medianas_train$surface_covered
-    ),
-    
-    rooms = coalesce(
-      rooms,
-      medianas_train$rooms
-    ),
-    
-    bedrooms = coalesce(
-      bedrooms,
-      medianas_train$bedrooms
-    ),
-    
-    bathrooms = coalesce(
-      bathrooms,
-      medianas_train$bathrooms
-    ),
-    
-    estrato = coalesce(
-      estrato,
-      medianas_train$estrato
-    )
-    
-  )
-
-# Eliminar variables innecesarias para predecir
-base_train_final <- base_train_osm %>%
-  select(
-    -city,
-    -property_type,
-    -operation_type,
-    -title,
-    -description,
-    -texto,
-    -metros_extraidos,
-    -bathrooms_extraidos,
-    -rooms_extraidos,
-    -estrato_texto
-  ) 
-
-# 2. Test -----------------------------------------------------------------
-
-# ------------------------------------------------------------
-# Crear variables a partir del texto
-# ------------------------------------------------------------
-base_test <- test %>%
-  mutate(
-    title = coalesce(title, ""),
-    description = coalesce(description, ""),
-    
-    texto = limpiar_texto(str_c(title, description, sep = " ")),
-    
-    gym = as.integer(str_detect(texto, "\\b(gimnasio|gym)\\b")),
-    elevator = as.integer(str_detect(texto, "\\b(ascensor|elevador)\\b")),
-    parking = as.integer(str_detect(texto, "\\b(parking|parqueadero|garaje|garage)\\b")),
-    balcony = as.integer(str_detect(texto, "\\b(balcon|balcones|terraza)\\b")),
-    pool = as.integer(str_detect(texto, "\\b(piscina|pool)\\b")),
-    security = as.integer(str_detect(texto, "\\b(vigilancia|seguridad|porteria|portero|recepcion)\\b")),
-    green_area = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
-    remodeled = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
-    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
-    luxury = as.integer(str_detect(texto, "\\b(marmol|granito|madera|piso laminado|acabados de lujo|lujo|exclusivo|exclusiva|premium)\\b")),
-    storage = as.integer(str_detect(texto, "deposito|cuarto util|bodega")),
-    estrato_texto = str_extract(
-      texto,
-      "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"
-    ),
-    
-    estrato = parse_number(estrato_texto)
-  )
-
-# ------------------------------------------------------------
-# Crear variables a partir del texto
-# ------------------------------------------------------------
-test_sf <- base_test %>%
-  mutate(row_id = row_number()) %>%
-  filter(!is.na(lon), !is.na(lat)) %>%
-  st_as_sf(
-    coords = c("lon", "lat"),
-    crs = 4326,
-    remove = FALSE
-  ) %>%
-  st_transform(3116)
-
-# Distancia al transporte público más cercano
-idx_transporte_cercano_test <- st_nearest_feature(test_sf, transporte)
-
-test_sf$dist_transporte_m <- as.numeric(
-  st_distance(
-    test_sf,
-    transporte[idx_transporte_cercano_test, ],
-    by_element = TRUE
-  )
-)
-
-# Número de restaurantes en un radio de 500 metros
-buffer_500_test <- st_buffer(test_sf, dist = 500)
-
-test_sf$n_restaurantes_500m <- lengths(
-  st_intersects(buffer_500_test, restaurantes)
-)
-
-# Distancia al colegio más cercano
-idx_colegio_cercano_test <- st_nearest_feature(test_sf, colegios)
-
-test_sf$dist_colegio_m <- as.numeric(
-  st_distance(
-    test_sf,
-    colegios[idx_colegio_cercano_test, ],
-    by_element = TRUE
-  )
-)
-
-# Distancia al parque más cercano
-idx_parque_cercano_test <- st_nearest_feature(test_sf, parques)
-
-test_sf$dist_parque_m <- as.numeric(
-  st_distance(
-    test_sf,
-    parques[idx_parque_cercano_test, ],
-    by_element = TRUE
-  )
-)
-
-# ------------------------------------------------------------
-# Volver a formato normal y unir con base_test
-# ------------------------------------------------------------
-test_osm_vars <- test_sf %>%
-  st_drop_geometry() %>%
-  select(
-    row_id,
-    dist_transporte_m,
-    n_restaurantes_500m,
-    dist_colegio_m,
-    dist_parque_m
-  )
-
-base_test_osm <- base_test %>%
-  mutate(row_id = row_number()) %>%
-  left_join(test_osm_vars, by = "row_id") %>%
-  select(-row_id)
-
-# Ajustes finales 
-base_test_osm <- base_test_osm %>%
-  mutate(
-    house = as.integer(property_type == "Casa")
-  )
-
-# ------------------------------------------------------------
-# Missing values en test
-# ------------------------------------------------------------
-
-base_test_osm <- base_test_osm %>%
-  mutate(
-    na_surface_total = as.integer(is.na(surface_total)),
-    na_surface_covered = as.integer(is.na(surface_covered)),
-    na_rooms = as.integer(is.na(rooms)),
-    na_bathrooms = as.integer(is.na(bathrooms)),
-    na_bedrooms = as.integer(is.na(bedrooms)),
-    na_estrato = as.integer(is.na(estrato))
-  ) %>%
-  mutate(
-    metros_extraidos = str_extract(
-      texto,
-      "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
-    ),
-    metros_extraidos = parse_number(metros_extraidos),
-    
-    bathrooms_extraidos = str_extract(
-      texto,
-      "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
-    ),
-    bathrooms_extraidos = parse_number(bathrooms_extraidos),
-    
-    rooms_extraidos = str_extract(
-      texto,
-      "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
-    ),
-    rooms_extraidos = parse_number(rooms_extraidos)
-  ) %>%
-  mutate(
-    surface_total = coalesce(surface_total, metros_extraidos),
-    surface_covered = coalesce(surface_covered, metros_extraidos),
-    bathrooms = coalesce(bathrooms, bathrooms_extraidos),
-    rooms = coalesce(rooms, rooms_extraidos),
-    bedrooms = coalesce(bedrooms, rooms)
-  ) %>%
-  mutate(
-    surface_total = coalesce(surface_total, medianas_train$surface_total),
-    surface_covered = coalesce(surface_covered, medianas_train$surface_covered),
-    rooms = coalesce(rooms, medianas_train$rooms),
-    bedrooms = coalesce(bedrooms, medianas_train$bedrooms),
-    bathrooms = coalesce(bathrooms, medianas_train$bathrooms),
-    estrato = coalesce(estrato, medianas_train$estrato)
-  )
-
-# Eliminar variables innecesarias para predecir
-base_test_final <- base_test_osm %>%
-  select(
-    -any_of(c(
-      "city",
-      "price",
-      "property_type",
-      "operation_type",
-      "title",
-      "description",
-      "texto",
-      "metros_extraidos",
-      "bathrooms_extraidos",
-      "rooms_extraidos",
-      "estrato_texto"
+    metros_extraidos = parse_number(str_extract(
+      texto, "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
+    )),
+    bathrooms_extraidos = parse_number(str_extract(
+      texto, "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
+    )),
+    rooms_extraidos = parse_number(str_extract(
+      texto, "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
     ))
   )
 
 # ------------------------------------------------------------
-# Verificación final de missing values
+# PASO 2: Imputar con información extraída del texto
 # ------------------------------------------------------------
-
-colSums(is.na(base_train_final)) |> 
-  sort(decreasing = TRUE)
-
-colSums(is.na(base_test_final)) |> 
-  sort(decreasing = TRUE)
+base_train_osm <- base_train_osm %>%
+  mutate(
+    surface_total   = coalesce(surface_total, metros_extraidos),
+    surface_covered = coalesce(surface_covered, metros_extraidos),
+    bathrooms       = coalesce(bathrooms, bathrooms_extraidos),
+    rooms           = coalesce(rooms, rooms_extraidos),
+    bedrooms        = coalesce(bedrooms, rooms)
+  )
 
 # ------------------------------------------------------------
+# PASO 3: Crear indicadores de missingness
+# ------------------------------------------------------------
+base_train_osm <- base_train_osm %>%
+  mutate(
+    na_surface_total   = as.integer(is.na(surface_total)),
+    na_surface_covered = as.integer(is.na(surface_covered)),
+    na_rooms           = as.integer(is.na(rooms)),
+    na_bathrooms       = as.integer(is.na(bathrooms)),
+    na_bedrooms        = as.integer(is.na(bedrooms)),
+    na_estrato         = as.integer(is.na(estrato))
+  )
+
+# ------------------------------------------------------------
+# PASO 4: Imputación final con medianas del train
+# ------------------------------------------------------------
+medianas_train <- base_train_osm %>%
+  summarise(
+    surface_total   = median(surface_total,   na.rm = TRUE),
+    surface_covered = median(surface_covered, na.rm = TRUE),
+    rooms           = median(rooms,           na.rm = TRUE),
+    bedrooms        = median(bedrooms,        na.rm = TRUE),
+    bathrooms       = median(bathrooms,       na.rm = TRUE),
+    estrato         = median(estrato,         na.rm = TRUE)
+  )
+
+base_train_osm <- base_train_osm %>%
+  mutate(
+    surface_total   = coalesce(surface_total,   medianas_train$surface_total),
+    surface_covered = coalesce(surface_covered, medianas_train$surface_covered),
+    rooms           = coalesce(rooms,           medianas_train$rooms),
+    bedrooms        = coalesce(bedrooms,        medianas_train$bedrooms),
+    bathrooms       = coalesce(bathrooms,       medianas_train$bathrooms),
+    estrato         = coalesce(estrato,         medianas_train$estrato)
+  )
+
+# Eliminar columnas que no se usan para predecir
+base_train_final <- base_train_osm %>%
+  select(
+    -city, -property_type, -operation_type,
+    -title, -description, -texto,
+    -metros_extraidos, -bathrooms_extraidos, -rooms_extraidos,
+    -estrato_texto
+  )
+
+# =============================================================================
+# 2. TEST
+# =============================================================================
+
+# ------------------------------------------------------------
+# Variables de texto
+# ------------------------------------------------------------
+base_test <- test %>%
+  mutate(
+    title       = coalesce(title, ""),
+    description = coalesce(description, ""),
+    texto       = limpiar_texto(str_c(title, description, sep = " ")),
+    
+    gym          = as.integer(str_detect(texto, "\\b(gimnasio|gym)\\b")),
+    elevator     = as.integer(str_detect(texto, "\\b(ascensor|elevador)\\b")),
+    parking      = as.integer(str_detect(texto, "\\b(parking|parqueadero|garaje|garage)\\b")),
+    balcony      = as.integer(str_detect(texto, "\\b(balcon|balcones|terraza)\\b")),
+    pool         = as.integer(str_detect(texto, "\\b(piscina|pool)\\b")),
+    security     = as.integer(str_detect(texto, "\\b(vigilancia|seguridad|porteria|portero|recepcion)\\b")),
+    green_area   = as.integer(str_detect(texto, "\\b(zona verde|zonas verdes|parque|jardin)\\b")),
+    remodeled    = as.integer(str_detect(texto, "\\b(remodelado|remodelada|renovado|renovada)\\b")),
+    new_property = as.integer(str_detect(texto, "\\b(nuevo|nueva|estrenar|para estrenar)\\b")),
+    luxury       = as.integer(str_detect(texto, "\\b(marmol|granito|madera|piso laminado|acabados de lujo|lujo|exclusivo|exclusiva|premium)\\b")),
+    storage      = as.integer(str_detect(texto, "deposito|cuarto util|bodega")),
+    
+    estrato_texto = str_extract(texto, "\\b(estrato\\s?[1-6]|est\\.?\\s?[1-6])\\b"),
+    estrato       = parse_number(estrato_texto)
+  )
+
+# ------------------------------------------------------------
+# Variables espaciales desde OpenStreetMap
+# ------------------------------------------------------------
+test_sf <- base_test %>%
+  mutate(row_id = row_number()) %>%
+  filter(!is.na(lon), !is.na(lat)) %>%
+  st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE) %>%
+  st_transform(3116)
+
+idx_transporte_cercano_test      <- st_nearest_feature(test_sf, transporte)
+test_sf$dist_transporte_m        <- as.numeric(
+  st_distance(test_sf, transporte[idx_transporte_cercano_test, ], by_element = TRUE)
+)
+
+buffer_500_test                  <- st_buffer(test_sf, dist = 500)
+test_sf$n_restaurantes_500m      <- lengths(st_intersects(buffer_500_test, restaurantes))
+
+idx_colegio_cercano_test         <- st_nearest_feature(test_sf, colegios)
+test_sf$dist_colegio_m           <- as.numeric(
+  st_distance(test_sf, colegios[idx_colegio_cercano_test, ], by_element = TRUE)
+)
+
+idx_parque_cercano_test          <- st_nearest_feature(test_sf, parques)
+test_sf$dist_parque_m            <- as.numeric(
+  st_distance(test_sf, parques[idx_parque_cercano_test, ], by_element = TRUE)
+)
+
+# Unir variables OSM con base_test
+test_osm_vars <- test_sf %>%
+  st_drop_geometry() %>%
+  select(row_id, dist_transporte_m, n_restaurantes_500m, dist_colegio_m, dist_parque_m)
+
+base_test_osm <- base_test %>%
+  mutate(row_id = row_number()) %>%
+  left_join(test_osm_vars, by = "row_id") %>%
+  select(-row_id) %>%
+  mutate(house = as.integer(property_type == "Casa"))
+
+# ------------------------------------------------------------
+# PASO 1: Extraer metros, baños y cuartos desde el texto
+# ------------------------------------------------------------
+base_test_osm <- base_test_osm %>%
+  mutate(
+    metros_extraidos = parse_number(str_extract(
+      texto, "\\b\\d{2,4}\\s?(m2|mts2|mts|metros|metro)\\b"
+    )),
+    bathrooms_extraidos = parse_number(str_extract(
+      texto, "\\b\\d+\\s?(banos|baños|bano|baño)\\b"
+    )),
+    rooms_extraidos = parse_number(str_extract(
+      texto, "\\b\\d+\\s?(habitaciones|habitacion|alcobas|alcoba|cuartos|cuarto)\\b"
+    ))
+  )
+
+# ------------------------------------------------------------
+# PASO 2: Imputar con información extraída del texto
+# ------------------------------------------------------------
+base_test_osm <- base_test_osm %>%
+  mutate(
+    surface_total   = coalesce(surface_total, metros_extraidos),
+    surface_covered = coalesce(surface_covered, metros_extraidos),
+    bathrooms       = coalesce(bathrooms, bathrooms_extraidos),
+    rooms           = coalesce(rooms, rooms_extraidos),
+    bedrooms        = coalesce(bedrooms, rooms)
+  )
+
+# ------------------------------------------------------------
+# PASO 3: Crear indicadores de missingness
+# ------------------------------------------------------------
+base_test_osm <- base_test_osm %>%
+  mutate(
+    na_surface_total   = as.integer(is.na(surface_total)),
+    na_surface_covered = as.integer(is.na(surface_covered)),
+    na_rooms           = as.integer(is.na(rooms)),
+    na_bathrooms       = as.integer(is.na(bathrooms)),
+    na_bedrooms        = as.integer(is.na(bedrooms)),
+    na_estrato         = as.integer(is.na(estrato))
+  )
+
+# ------------------------------------------------------------
+# PASO 4: Imputación final con medianas del TRAIN
+# ------------------------------------------------------------
+base_test_osm <- base_test_osm %>%
+  mutate(
+    surface_total   = coalesce(surface_total,   medianas_train$surface_total),
+    surface_covered = coalesce(surface_covered, medianas_train$surface_covered),
+    rooms           = coalesce(rooms,           medianas_train$rooms),
+    bedrooms        = coalesce(bedrooms,        medianas_train$bedrooms),
+    bathrooms       = coalesce(bathrooms,       medianas_train$bathrooms),
+    estrato         = coalesce(estrato,         medianas_train$estrato)
+  )
+
+# Eliminar columnas que no se usan para predecir
+base_test_final <- base_test_osm %>%
+  select(
+    -any_of(c(
+      "city", "price", "property_type", "operation_type",
+      "title", "description", "texto",
+      "metros_extraidos", "bathrooms_extraidos", "rooms_extraidos",
+      "estrato_texto"
+    ))
+  )
+
+# =============================================================================
+# Verificación final
+# =============================================================================
+
+# Missing values restantes
+colSums(is.na(base_train_final)) |> sort(decreasing = TRUE)
+colSums(is.na(base_test_final))  |> sort(decreasing = TRUE)
+
+# Verificar que no hay columnas de varianza cero (causarían NaN al escalar)
+vars_cero_train <- sapply(
+  base_train_final %>% select(where(is.numeric)),
+  function(x) var(x, na.rm = TRUE)
+) %>% .[. == 0]
+
+if (length(vars_cero_train) > 0) {
+  warning("Columnas con varianza cero en train: ", paste(names(vars_cero_train), collapse = ", "))
+} else {
+  message("OK: ninguna columna con varianza cero en train")
+}
+
+# =============================================================================
 # Guardar bases limpias
-# ------------------------------------------------------------
-
-write_rds(
-  base_train_final,
-  file.path(path_cleaned, "base_train_final.rds")
-)
-
-write_rds(
-  base_test_final,
-  file.path(path_cleaned, "base_test_final.rds")
-)
+# =============================================================================
+write_rds(base_train_final, file.path(path_cleaned, "base_train_final.rds"))
+write_rds(base_test_final,  file.path(path_cleaned, "base_test_final.rds"))
