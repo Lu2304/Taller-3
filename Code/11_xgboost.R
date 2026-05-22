@@ -421,7 +421,7 @@ dtm_train <- dfm(tokens_train)
 # Reducir dimensionalidad: conserva términos frecuentes pero no universales
 dtm_train <- dfm_trim(
   dtm_train,
-  min_docfreq = 3,
+  min_docfreq = 200,
   docfreq_type = "count"
 )
 
@@ -620,7 +620,57 @@ submission_xgb_spatial_dtm <- data.frame(
 
 write.csv(
   submission_xgb_spatial_dtm,
-  file.path(path_submissions, "xgboost_spatial_cv_dtm.csv"),
+  file.path(path_submissions, "xgboost_spatial_cv_dtm3.csv"),
   row.names = FALSE
 )
 
+<<<<<<< Updated upstream:Code/11_xgboost.R
+=======
+# ------------------------------------------------------------
+# 8. Variable importance
+# ------------------------------------------------------------
+
+pred_wrapper_xgb <- function(object, newdata) {
+  pred_log <- predict(object, newdata = newdata)
+  exp(pred_log)
+}
+
+set.seed(123)
+
+vi_xgb_perm <- vip::vi_permute(
+  object = modelo_xgb_final_spatial_dtm,
+  train = x_train,
+  target = y_train_original,
+  metric = "mae",
+  pred_wrapper = pred_wrapper_xgb,
+  nsim = 5,
+  smaller_is_better = TRUE
+)
+
+vi_xgb_perm
+
+p_varimp_perm <- vi_xgb_perm %>%
+  arrange(desc(Importance)) %>%
+  slice(1:20) %>%
+  ggplot(aes(x = reorder(Variable, Importance), y = Importance)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Importancia de variables por permutación",
+    x = NULL,
+    y = "Aumento en MAE"
+  ) +
+  theme_minimal()
+
+p_varimp_perm
+
+ggsave(
+  filename = file.path(path_figures, "varimp_permutation_xgb_spatial_dtm.png"),
+  plot = p_varimp_perm,
+  width = 10,
+  height = 7,
+  dpi = 300
+)
+
+
+>>>>>>> Stashed changes:Code/XX_xgboost.R
