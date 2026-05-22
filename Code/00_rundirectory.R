@@ -12,8 +12,13 @@ rm(list = ls())
 
 library(pacman)
 
+<<<<<<< Updated upstream
 p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample, keras3,
        ggplot2, scales, glmnet, rpart, rpart.plot, nnls, glmnet, Matrix, quanteda)
+=======
+p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample, keras,
+       ggplot2, scales, quanteda, quanteda.textplots, Matrix, vip)
+>>>>>>> Stashed changes
 
 # Establecimiento de paths
 path_input  <- "Input"
@@ -36,6 +41,7 @@ dir.create(path_models, recursive = TRUE, showWarnings = FALSE)
 # Correr scripts
 source(file.path("Code", "01_load_data.R"))
 source(file.path("Code", "02_clean_inspect_data.R"))
+<<<<<<< Updated upstream
 source(file.path("Code", "03_descriptivas.R"))
 source(file.path("Code", "04_linear_regression.R"))
 source(file.path("Code", "05_CART.R"))
@@ -46,3 +52,6 @@ source(file.path("Code", "09_Elastic_Net.R"))
 source(file.path("Code", "10_NN.R"))
 source(file.path("Code", "11_xgboost.R"))
 source(file.path("Code", "12_superlearner.R"))
+=======
+source(file.path("Code", "03_descriptive_statistics.R"))
+>>>>>>> Stashed changes
