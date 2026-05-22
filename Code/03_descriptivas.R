@@ -32,7 +32,7 @@ p1_hist <- ggplot(base_train, aes(x = price / 1e6)) +
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "01_hist_precio.pdf"),
+ggsave(file.path(path_figures, "01_hist_precio.png"),
        p1_hist, width = 8, height = 5)
 
 
@@ -52,7 +52,7 @@ p1_box <- ggplot(base_train, aes(x = property_type, y = price / 1e6, fill = prop
   theme_taller +
   theme(legend.position = "none")
 
-ggsave(file.path(path_figures, "02_box_precio_tipo.pdf"),
+ggsave(file.path(path_figures, "02_box_precio_tipo.png"),
        p1_box, width = 6, height = 5)
 
 
@@ -80,7 +80,7 @@ p2_bed <- base_train %>%
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "04_dist_habitaciones.pdf"),
+ggsave(file.path(path_figures, "04_dist_habitaciones.png"),
        p2_bed, width = 7, height = 5)
 
 
@@ -104,7 +104,7 @@ p2_price_bed <- base_train %>%
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "05_precio_habitaciones.pdf"),
+ggsave(file.path(path_figures, "05_precio_habitaciones.png"),
        p2_price_bed, width = 7, height = 5)
 
 
@@ -144,7 +144,7 @@ p3_missing <- ggplot(missing_df, aes(x = reorder(variable, pct_missing), y = pct
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "06_missingness.pdf"),
+ggsave(file.path(path_figures, "06_missingness.png"),
        p3_missing, width = 7, height = 5)
 
 
@@ -192,7 +192,7 @@ p4_text <- ggplot(text_vars, aes(x = reorder(variable, pct), y = pct)) +
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "07_text_vars.pdf"),
+ggsave(file.path(path_figures, "07_text_vars.png"),
        p4_text, width = 8, height = 6)
 
 
@@ -225,14 +225,14 @@ p5_osm <- ggplot(osm_long, aes(x = distancia_m / 1000, fill = variable)) +
   theme_taller +
   theme(legend.position = "none")
 
-ggsave(file.path(path_figures, "08_osm_distancias.pdf"),
+ggsave(file.path(path_figures, "08_osm_distancias.png"),
        p5_osm, width = 10, height = 4)
 
 
 # --- 5.2 Distribución de restaurantes en 500m ---
 p5_restaurantes <- ggplot(base_train_osm, aes(x = n_restaurantes_500m)) +
   geom_histogram(bins = 30, fill = "#2C7BB6", color = "white", alpha = 0.85) +
-  scale_x_continuous(breaks = seq(0, max(base_train_osm$n_restaurantes_500m, na.rm = TRUE), by = 5)) +
+  scale_x_continuous(breaks = seq(0, max(base_train_osm$n_restaurantes_500m, na.rm = TRUE), by = 25)) +
   labs(
     title    = "Restaurantes en un radio de 500 metros",
     subtitle = "Bogotá — datos de entrenamiento",
@@ -242,7 +242,7 @@ p5_restaurantes <- ggplot(base_train_osm, aes(x = n_restaurantes_500m)) +
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "08b_restaurantes_500m.pdf"),
+ggsave(file.path(path_figures, "08b_restaurantes_500m.png"),
        p5_restaurantes, width = 7, height = 5)
 
 
@@ -268,7 +268,7 @@ p5_transport <- base_train_osm %>%
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "09_precio_transporte.pdf"),
+ggsave(file.path(path_figures, "09_precio_transporte.png"),
        p5_transport, width = 7, height = 5)
 
 
@@ -298,7 +298,7 @@ p6_map <- ggplot(map_data, aes(x = lon, y = lat, color = muestra)) +
   theme_taller +
   theme(legend.position = "right")
 
-ggsave(file.path(path_figures, "10_mapa_train_test.pdf"),
+ggsave(file.path(path_figures, "10_mapa_train_test.png"),
        p6_map, width = 7, height = 6)
 
 
@@ -327,7 +327,7 @@ p6_comp <- ggplot(comp_beds, aes(x = factor(bedrooms), y = pct, fill = muestra))
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "11_comp_habitaciones.pdf"),
+ggsave(file.path(path_figures, "11_comp_habitaciones.png"),
        p6_comp, width = 8, height = 5)
 
 
@@ -355,7 +355,7 @@ p6_type <- ggplot(comp_type, aes(x = muestra, y = pct, fill = property_type)) +
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "12_comp_tipo.pdf"),
+ggsave(file.path(path_figures, "12_comp_tipo.png"),
        p6_type, width = 6, height = 5)
 
 text_compare <- bind_rows(
@@ -437,6 +437,8 @@ message("✓ Tablas guardadas en: ", path_tables)
 # =============================================================================
 # Comparación train vs Chapinero — variables más importantes del modelo
 # =============================================================================
+
+#Distribución de precios de vivienda en Bgotá
 p95 <- quantile(base_train_osm$price, 0.95, na.rm = TRUE)
 
 ggplot() +
@@ -452,21 +454,29 @@ ggplot() +
   ) +
   scale_color_viridis_c(
     option = "magma",
-    name   = "Precio train\n(M COP)",
-    labels = comma_format()
+    name   = "Millones COP",
+    limits = c(0, 1250),
+    breaks = c(0, 400, 800, 1250),
+    labels = c("0M", "400M", "800M", "1,250M")
   ) +
-  annotate("text", x = -74.03, y = 4.63, label = "Chapinero (test)",
-           color = "grey50", size = 3.5, fontface = "bold") +
+  annotate("text", x = -74.04, y = 4.63, label = "Chapinero (test)",
+           color = "grey30", size = 3.5, fontface = "bold") +
   labs(
     title    = "Precio de vivienda por ubicación",
-    subtitle = "Train coloreado por precio — Chapinero (test) en rojo",
+    subtitle = "Train coloreado por precio — Chapinero (test) en gris",
     x        = "Longitud",
     y        = "Latitud",
     caption  = "Fuente: Properati"
   ) +
-  theme_taller
+  coord_cartesian(xlim = c(-74.22, -73.98), ylim = c(4.55, 4.82)) +
+  theme_taller +
+  theme(
+    legend.key.width  = unit(2, "cm"),
+    legend.key.height = unit(0.4, "cm")
+  )
 
-
+ggsave(file.path(path_figures, "10b_mapa_precio.png"),
+       width = 9, height = 7.5, dpi = 300)
 # --- Bathrooms ---
 comp_bath <- bind_rows(
   base_train_osm %>% 
@@ -498,38 +508,8 @@ p_bath <- ggplot(comp_bath, aes(x = factor(bathrooms), y = pct, fill = muestra))
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "13_comp_bathrooms.pdf"),
+ggsave(file.path(path_figures, "13_comp_bathrooms.png"),
        p_bath, width = 8, height = 5)
-
-
-# --- Surface covered ---
-comp_surf <- bind_rows(
-  base_train_osm %>% 
-    select(surface_covered) %>% 
-    mutate(muestra = "Bogotá (train)"),
-  base_test_osm %>% 
-    select(surface_covered) %>% 
-    mutate(muestra = "Chapinero (test)")
-) %>%
-  filter(surface_covered > 0, surface_covered <= 300)
-
-p_surf <- ggplot(comp_surf, aes(x = surface_covered, fill = muestra)) +
-  geom_density(alpha = 0.5) +
-  scale_fill_manual(values = c("Bogotá (train)" = "#2C7BB6",
-                               "Chapinero (test)" = "#D7191C")) +
-  labs(
-    title    = "Distribución del área cubierta: Bogotá vs Chapinero",
-    subtitle = "Chapinero concentra propiedades de mayor tamaño",
-    x        = "Área cubierta (m²)",
-    y        = "Densidad",
-    fill     = NULL,
-    caption  = "Fuente: Properati"
-  ) +
-  theme_taller
-
-ggsave(file.path(path_figures, "14_comp_surface_covered.pdf"),
-       p_surf, width = 8, height = 5)
-
 
 # --- Bedrooms ---
 comp_bed2 <- bind_rows(
@@ -562,7 +542,7 @@ p_bed2 <- ggplot(comp_bed2, aes(x = factor(bedrooms), y = pct, fill = muestra)) 
   ) +
   theme_taller
 
-ggsave(file.path(path_figures, "15_comp_bedrooms.pdf"),
+ggsave(file.path(path_figures, "15_comp_bedrooms.png"),
        p_bed2, width = 8, height = 5)
 
 message("✓ Figuras de comparación guardadas")
