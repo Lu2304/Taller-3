@@ -624,8 +624,6 @@ write.csv(
   row.names = FALSE
 )
 
-<<<<<<< Updated upstream:Code/11_xgboost.R
-=======
 # ------------------------------------------------------------
 # 8. Variable importance
 # ------------------------------------------------------------
@@ -651,7 +649,7 @@ vi_xgb_perm
 
 p_varimp_perm <- vi_xgb_perm %>%
   arrange(desc(Importance)) %>%
-  slice(1:20) %>%
+  slice(1:10) %>%
   ggplot(aes(x = reorder(Variable, Importance), y = Importance)) +
   geom_col() +
   coord_flip() +
@@ -672,5 +670,3 @@ ggsave(
   dpi = 300
 )
 
-
->>>>>>> Stashed changes:Code/XX_xgboost.R
