@@ -432,3 +432,137 @@ write.csv(tabla_resumen,
 
 message("✓ Figuras guardadas en: ", path_figures)
 message("✓ Tablas guardadas en: ", path_tables)
+
+
+# =============================================================================
+# Comparación train vs Chapinero — variables más importantes del modelo
+# =============================================================================
+p95 <- quantile(base_train_osm$price, 0.95, na.rm = TRUE)
+
+ggplot() +
+  geom_point(
+    data = base_train_osm,
+    aes(x = lon, y = lat, color = pmin(price, p95) / 1e6),
+    size = 0.4, alpha = 0.5
+  ) +
+  geom_point(
+    data = base_test_osm,
+    aes(x = lon, y = lat),
+    color = "grey50", size = 0.6, alpha = 0.7
+  ) +
+  scale_color_viridis_c(
+    option = "magma",
+    name   = "Precio train\n(M COP)",
+    labels = comma_format()
+  ) +
+  annotate("text", x = -74.03, y = 4.63, label = "Chapinero (test)",
+           color = "grey50", size = 3.5, fontface = "bold") +
+  labs(
+    title    = "Precio de vivienda por ubicación",
+    subtitle = "Train coloreado por precio — Chapinero (test) en rojo",
+    x        = "Longitud",
+    y        = "Latitud",
+    caption  = "Fuente: Properati"
+  ) +
+  theme_taller
+
+
+# --- Bathrooms ---
+comp_bath <- bind_rows(
+  base_train_osm %>% 
+    select(bathrooms) %>% 
+    mutate(muestra = "Bogotá (train)"),
+  base_test_osm %>% 
+    select(bathrooms) %>% 
+    mutate(muestra = "Chapinero (test)")
+) %>%
+  filter(bathrooms >= 1, bathrooms <= 6) %>%
+  count(muestra, bathrooms) %>%
+  group_by(muestra) %>%
+  mutate(pct = n / sum(n) * 100)
+
+p_bath <- ggplot(comp_bath, aes(x = factor(bathrooms), y = pct, fill = muestra)) +
+  geom_col(position = "dodge", alpha = 0.85) +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3.2) +
+  scale_fill_manual(values = c("Bogotá (train)" = "#2C7BB6",
+                               "Chapinero (test)" = "#D7191C")) +
+  labs(
+    title    = "Distribución de baños: Bogotá vs Chapinero",
+    subtitle = "Chapinero tiende a tener más baños por propiedad",
+    x        = "Número de baños",
+    y        = "% de propiedades",
+    fill     = NULL,
+    caption  = "Fuente: Properati"
+  ) +
+  theme_taller
+
+ggsave(file.path(path_figures, "13_comp_bathrooms.pdf"),
+       p_bath, width = 8, height = 5)
+
+
+# --- Surface covered ---
+comp_surf <- bind_rows(
+  base_train_osm %>% 
+    select(surface_covered) %>% 
+    mutate(muestra = "Bogotá (train)"),
+  base_test_osm %>% 
+    select(surface_covered) %>% 
+    mutate(muestra = "Chapinero (test)")
+) %>%
+  filter(surface_covered > 0, surface_covered <= 300)
+
+p_surf <- ggplot(comp_surf, aes(x = surface_covered, fill = muestra)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("Bogotá (train)" = "#2C7BB6",
+                               "Chapinero (test)" = "#D7191C")) +
+  labs(
+    title    = "Distribución del área cubierta: Bogotá vs Chapinero",
+    subtitle = "Chapinero concentra propiedades de mayor tamaño",
+    x        = "Área cubierta (m²)",
+    y        = "Densidad",
+    fill     = NULL,
+    caption  = "Fuente: Properati"
+  ) +
+  theme_taller
+
+ggsave(file.path(path_figures, "14_comp_surface_covered.pdf"),
+       p_surf, width = 8, height = 5)
+
+
+# --- Bedrooms ---
+comp_bed2 <- bind_rows(
+  base_train_osm %>% 
+    select(bedrooms) %>% 
+    mutate(muestra = "Bogotá (train)"),
+  base_test_osm %>% 
+    select(bedrooms) %>% 
+    mutate(muestra = "Chapinero (test)")
+) %>%
+  filter(bedrooms >= 1, bedrooms <= 6) %>%
+  count(muestra, bedrooms) %>%
+  group_by(muestra) %>%
+  mutate(pct = n / sum(n) * 100)
+
+p_bed2 <- ggplot(comp_bed2, aes(x = factor(bedrooms), y = pct, fill = muestra)) +
+  geom_col(position = "dodge", alpha = 0.85) +
+  geom_text(aes(label = paste0(round(pct, 1), "%")),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3.2) +
+  scale_fill_manual(values = c("Bogotá (train)" = "#2C7BB6",
+                               "Chapinero (test)" = "#D7191C")) +
+  labs(
+    title    = "Distribución de habitaciones: Bogotá vs Chapinero",
+    subtitle = "Diferencias en la composición del stock de vivienda",
+    x        = "Número de habitaciones",
+    y        = "% de propiedades",
+    fill     = NULL,
+    caption  = "Fuente: Properati"
+  ) +
+  theme_taller
+
+ggsave(file.path(path_figures, "15_comp_bedrooms.pdf"),
+       p_bed2, width = 8, height = 5)
+
+message("✓ Figuras de comparación guardadas")
