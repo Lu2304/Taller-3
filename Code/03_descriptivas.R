@@ -403,6 +403,8 @@ ggplot(text_compare, aes(x = reorder(variable, pct), y = pct, fill = muestra)) +
     caption  = "Fuente: Properati — elaboración propia a partir del texto"
   ) +
   theme_taller
+ggsave(file.path(path_figures, "13b_comp_amenidades.png"),
+       width = 10, height = 6, dpi = 300)
 # =============================================================================
 # TABLA RESUMEN (para diapositivas)
 # =============================================================================
