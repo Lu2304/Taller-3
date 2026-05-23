@@ -1,2 +1,2 @@
-"modelo","alpha_cart","alpha_xgb","alpha_prom","mae_cv"
-"SuperLearner",0.1773,0.8227,0,107252991.252562
+"modelo","alpha_cart","alpha_xgb","alpha_prom","mae_cv","mae_spatial"
+"SuperLearner",0.1773,0.8227,0,107252991.252562,139297953.095308
