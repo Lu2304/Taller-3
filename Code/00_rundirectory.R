@@ -12,9 +12,9 @@ rm(list = ls())
 
 library(pacman)
 
-p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr, spatialsample, rsample, keras3,
-       ggplot2, scales, glmnet, rpart, rpart.plot, nnls, glmnet, Matrix, quanteda, broom, rpart, rpart.plot,
-       nnls, rpart, forcats)
+p_load(dplyr, stringr, stringi, osmdata, sf, tidyr, caret, xgboost, purrr, readr,
+       spatialsample, rsample, keras3, ggplot2, scales, glmnet, rpart, rpart.plot,
+       nnls, Matrix, quanteda, broom, forcats, ranger, vip, tibble, gbm)
 
 # Establecimiento de paths
 path_input  <- "Input"
@@ -41,10 +41,9 @@ source(file.path("Code", "03_descriptivas.R"))
 source(file.path("Code", "04_linear_regression.R"))
 source(file.path("Code", "05_CART.R"))
 source(file.path("Code", "06_random_forest.R"))
-source(file.path("Code", "07_random_forest_2.R"))
-source(file.path("Code", "08_random_forest_3.R"))
-source(file.path("Code", "09_Elastic_Net.R"))
-source(file.path("Code", "10_NN.R"))
-source(file.path("Code", "11_xgboost.R"))
-source(file.path("Code", "12_superlearner.R"))
-source(file.path("Code", "13_gbm.R"))
+source(file.path("Code", "07_Elastic_Net.R"))
+source(file.path("Code", "08_NN.R"))
+source(file.path("Code", "09_xgboost.R"))
+source(file.path("Code", "10_superlearner.R"))
+source(file.path("Code", "11_gbm.R"))
+source(file.path("Code", "12_model_comp.R"))
