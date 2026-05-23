@@ -23,7 +23,7 @@ evaluada en Kaggle.
 ## Requisitos
 
 R >= 4.1. Instale pacman si no lo tiene: install.packages("pacman").
-El script maestro instala y carga todos los demas paquetes automaticamente.
+El script 00_rundirectory.R instala y carga todos los demas paquetes automaticamente.
 
 ---
 
